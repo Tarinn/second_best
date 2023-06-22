@@ -60,6 +60,12 @@ impl IO {
         }
     }
 
+    pub fn result_second_best(b: bool) {
+        if b {
+            println!("Second best! Try a new move.")
+        }
+    }
+
     pub fn ask_move_piece(colour: Colour) -> (usize, usize) {
         loop {
             println!("{:?}, move a piece. (1-8) (1-8): ", colour);

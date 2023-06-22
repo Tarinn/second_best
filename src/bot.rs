@@ -70,7 +70,6 @@ impl Player for Bot {
     }
 
     fn ask_second_best(&self, _board: &Board, _turn: &Turn) -> bool {
-        // TODO
         rand::random()
     }
 }

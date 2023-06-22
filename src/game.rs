@@ -50,10 +50,10 @@ impl Place {
     }
 
     pub fn count_pieces(&self) -> usize {
-        let mut total = 3;
+        let mut total = 0;
         for i in 0..3 {
-            if self.0[i] == Piece::Blank {
-                total -= 1;
+            if self.0[i] != Piece::Blank {
+                total += 1;
             };
         }
         total
@@ -102,14 +102,8 @@ pub struct Board(pub [Place; 8]);
 impl Board {
     pub fn new() -> Self {
         Self([
-            Place::new(),
-            Place::new(),
-            Place::new(),
-            Place::new(),
-            Place::new(),
-            Place::new(),
-            Place::new(),
-            Place::new(),
+            Place::new(), Place::new(), Place::new(), Place::new(),
+            Place::new(), Place::new(), Place::new(), Place::new(),
         ])
     }
 
@@ -140,10 +134,12 @@ impl Board {
                 &self.0[(i + 2) % 8].peek_top(),
                 &self.0[(i + 3) % 8].peek_top(),
             ] {
-                [&Piece::Piece(Colour::Black), &Piece::Piece(Colour::Black), &Piece::Piece(Colour::Black), &Piece::Piece(Colour::Black)] => {
+                [&Piece::Piece(Colour::Black), &Piece::Piece(Colour::Black), 
+                 &Piece::Piece(Colour::Black), &Piece::Piece(Colour::Black)] => {
                     black_win = true
                 }
-                [&Piece::Piece(Colour::White), &Piece::Piece(Colour::White), &Piece::Piece(Colour::White), &Piece::Piece(Colour::White)] => {
+                [&Piece::Piece(Colour::White), &Piece::Piece(Colour::White), 
+                 &Piece::Piece(Colour::White), &Piece::Piece(Colour::White)] => {
                     white_win = true
                 }
                 _ => {}
@@ -162,8 +158,7 @@ impl Board {
             Turn::Place(_, idx) => !self.0[idx].is_full(),
             Turn::Move(colour, idx1, idx2) => {
                 if let Piece::Piece(c) = self.0[idx1].peek_top() {
-                    !self.0[idx1].is_empty()
-                        && !self.0[idx2].is_full()
+                    !self.0[idx2].is_full()
                         && *c == colour
                         && (idx1 != idx2)
                         && (((idx1.abs_diff(idx2) % 8) == 1)
@@ -210,33 +205,28 @@ impl Game {
 
     pub fn start_game(&mut self) {
         match IO::start_game() {
-            Some(Colour::White) => {
-                self.gameloop((
-                    Box::new(Person::new(Colour::White)),
-                    Box::new(Bot::new(Colour::Black)),
-                ));
-            }
+            Some(Colour::White) => self.gameloop((
+                Box::new(Person::new(Colour::White)),
+                Box::new(Bot::new(Colour::Black)),
+            )),
             Some(Colour::Black) => self.gameloop((
                 Box::new(Bot::new(Colour::White)),
                 Box::new(Person::new(Colour::Black)),
             )),
-            None => {
-                self.gameloop((
-                    Box::new(Person::new(Colour::White)),
-                    Box::new(Person::new(Colour::Black)),
-                ));
-            }
+            None => self.gameloop((
+                Box::new(Person::new(Colour::White)),
+                Box::new(Person::new(Colour::Black)),
+            )),
         }
     }
 
     fn gameloop(&mut self, players: (Box<dyn Player>, Box<dyn Player>)) {
         let mut turn = 0;
+        IO::print_board(&self.board);
 
         loop {
             let player = if turn % 2 == 0 { &players.0 } else { &players.1 };
             let opponent = if turn % 2 == 0 { &players.1 } else { &players.0 };
-
-            IO::print_board(&self.board);
 
             if let Some(winstate) = self.board.is_won() {
                 IO::end_game(winstate);
@@ -256,7 +246,9 @@ impl Game {
                         IO::invalid_turn();
                     }
                 }
+                IO::print_board(&self.board);
                 if opponent.ask_second_best(&self.board, &Turn::Place(player.get_colour(), place)) {
+                    IO::result_second_best(true);
                     valid_turn = false;
                     let first_choice = place;
                     while !valid_turn {
@@ -286,7 +278,9 @@ impl Game {
                         IO::invalid_turn();
                     }
                 }
+                IO::print_board(&self.board);
                 if opponent.ask_second_best(&self.board, &Turn::Move(player.get_colour(), from_place, to_place)) {
+                    IO::result_second_best(true);
                     valid_turn = false;
                     let first_choice = (from_place, to_place);
                     while !valid_turn {
