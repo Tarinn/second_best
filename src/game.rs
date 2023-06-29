@@ -221,87 +221,75 @@ impl Game {
     }
 
     fn gameloop(&mut self, players: (Box<dyn Player>, Box<dyn Player>)) {
-        let mut turn = 0;
+        let mut turn_counter = 0;
         IO::print_board(&self.board);
 
+        // Loop rounds of the game
         loop {
-            let player = if turn % 2 == 0 { &players.0 } else { &players.1 };
-            let opponent = if turn % 2 == 0 { &players.1 } else { &players.0 };
+            // Determine the player making a turn each round (and the opponent deciding second best)
+            let player = if turn_counter % 2 == 0 { &players.0 } else { &players.1 };
+            let opponent = if turn_counter % 2 == 0 { &players.1 } else { &players.0 };
 
+            // Stop the game if someone has won
             if let Some(winstate) = self.board.is_won() {
                 IO::end_game(winstate);
                 return;
             }
 
-            if self.board.count_pieces() < 16 { // Placing phase
-                let mut place = 0;
-                let mut valid_turn = false;
+            // A turn in round is different depending on in placing or moving phase
+            let try_turn = |b: bool| {
+                if self.board.count_pieces() < 16 { // Placing
+                    let p = player.ask_put_piece(&self.board, b);
+                    Turn::Place(player.get_colour(), p)
+                } else { // Moving
+                    let m = player.ask_move_piece(&self.board, b);
+                    Turn::Move(player.get_colour(), m.0, m.1)
+                }
+            };
 
-                while !valid_turn {
-                    place = player.ask_put_piece(&self.board, false);
-                    valid_turn = self
-                        .board
-                        .is_possible_turn(&Turn::Place(player.get_colour(), place));
-                    if !valid_turn {
-                        IO::invalid_turn();
-                    }
+            // Keep asking for turn until a valid one is given
+            let mut turn: Turn;
+            let mut valid_turn: bool;
+            loop {
+                turn = try_turn(false);
+                valid_turn = self.board.is_possible_turn(&turn);
+                if !valid_turn {
+                    IO::invalid_turn();
+                } else {
+                    break;
                 }
-                IO::print_board(&self.board);
-                if opponent.ask_second_best(&self.board, &Turn::Place(player.get_colour(), place)) {
-                    IO::result_second_best(true);
-                    valid_turn = false;
-                    let first_choice = place;
-                    while !valid_turn {
-                        place = player.ask_put_piece(&self.board, true);
-                        valid_turn = self
-                            .board
-                            .is_possible_turn(&Turn::Place(player.get_colour(), place))
-                            && place != first_choice;
-                        if !valid_turn {
-                            IO::invalid_turn();
-                        }
-                    }
-                }
-                self.board.do_turn(&Turn::Place(player.get_colour(), place));
-                self.turns.push(Turn::Place(player.get_colour(), place));
-            } else { // Moving phase
-                let mut from_place = 0;
-                let mut to_place = 0;
-                let mut valid_turn = false;
-
-                while !valid_turn {
-                    (from_place, to_place) = player.ask_move_piece(&self.board, false);
-                    valid_turn =
-                        self.board
-                            .is_possible_turn(&Turn::Move(player.get_colour(), from_place, to_place));
-                    if !valid_turn {
-                        IO::invalid_turn();
-                    }
-                }
-                IO::print_board(&self.board);
-                if opponent.ask_second_best(&self.board, &Turn::Move(player.get_colour(), from_place, to_place)) {
-                    IO::result_second_best(true);
-                    valid_turn = false;
-                    let first_choice = (from_place, to_place);
-                    while !valid_turn {
-                        (from_place, to_place) = player.ask_move_piece(&self.board, true);
-                        valid_turn = self.board.is_possible_turn(&Turn::Move(
-                            player.get_colour(),
-                            from_place,
-                            to_place,
-                        )) && (from_place, to_place) != first_choice;
-                        if !valid_turn {
-                            IO::invalid_turn();
-                        }
-                    }
-                }
-                self.board
-                    .do_turn(&Turn::Move(player.get_colour(), from_place, to_place));
-                self.turns
-                    .push(Turn::Move(player.get_colour(), from_place, to_place));
             }
 
-            turn += 1;
+            // Output the current board state, might change because of second best so temp board is made to apply move
+            let mut temp_board = self.board.clone();
+            temp_board.do_turn(&turn);
+            IO::print_board(&temp_board);
+
+            // Ask opponent for second best
+            if opponent.ask_second_best(&self.board, &turn) {
+                IO::result_second_best(true);
+
+                // Demand valid turn again, but also cannot be equal to turn made in previous step
+                let first_turn = turn.clone();
+                loop {
+                    turn = try_turn(true);
+                    valid_turn = self
+                        .board
+                        .is_possible_turn(&turn)
+                        && turn != first_turn;
+                    if !valid_turn {
+                        IO::invalid_turn();
+                    } else {
+                        break;
+                    }
+                }
+            }
+
+            // Apply the turn to the board
+            self.board.do_turn(&turn);
+            IO::print_board(&self.board);
+            self.turns.push(turn);
+            turn_counter += 1;
         }
     }
 }

@@ -30,16 +30,16 @@ impl IO {
     pub fn bot_turn(turn: &Turn) {
         let move_string = match *turn {
             Turn::Place(colour, place) => {
-                format!("placed a {:?} piece at {:?}", colour, place)
+                format!("placed a {:?} piece at {:?}", colour, place + 1)
             }
             Turn::Move(colour, from_place, to_place) => {
                 format!(
                     "moved a {:?} piece from {:?} to {:?}",
-                    colour, from_place, to_place
+                    colour, from_place + 1, to_place + 1
                 )
             }
         };
-        println!("Computer has {:?}.", move_string);
+        println!("Computer has {}.", move_string);
     }
 
     pub fn ask_second_best() -> bool {
