@@ -11,6 +11,16 @@ pub enum Colour {
     Black,
 }
 
+impl Colour {
+    pub fn opposite(&self) -> Colour {
+        if *self == Colour::White {
+            Colour::Black
+        } else {
+            Colour::White
+        }
+    }
+}
+
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub enum Piece {
     Piece(Colour),
@@ -207,10 +217,10 @@ impl Game {
         match IO::start_game() {
             Some(Colour::White) => self.gameloop((
                 Box::new(Person::new(Colour::White)),
-                Box::new(Bot::new(Colour::Black)),
+                Box::new(Bot::new(Colour::Black, 3)),
             )),
             Some(Colour::Black) => self.gameloop((
-                Box::new(Bot::new(Colour::White)),
+                Box::new(Bot::new(Colour::White, 3)),
                 Box::new(Person::new(Colour::Black)),
             )),
             None => self.gameloop((
@@ -237,6 +247,7 @@ impl Game {
             }
 
             // A turn in round is different depending on in placing or moving phase
+            // Bool determins if it is a second turn after second best was declared
             let try_turn = |b: bool| {
                 if self.board.count_pieces() < 16 { // Placing
                     let p = player.ask_put_piece(&self.board, b);
@@ -259,6 +270,7 @@ impl Game {
                     break;
                 }
             }
+
 
             // Output the current board state, might change because of second best so temp board is made to apply move
             let mut temp_board = self.board.clone();
